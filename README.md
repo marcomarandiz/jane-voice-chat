@@ -13,7 +13,8 @@ Voice AI platforms like ElevenLabs Agents ($0.08-0.12/min) and Retell.ai ($0.13-
 
 ## Features
 
-- 🎙️ **Browser voice widget** — Push-to-talk or hands-free VAD
+- 🎙️ **Browser voice widget** — Push-to-talk or hands-free continuous mode
+- 🚗 **Continuous mode** — Like Grok voice. Auto-listens after each response. Perfect for Tesla browser!
 - 🔊 **Self-hosted STT** — Whisper Large V3 Turbo (runs on Mac/Linux/GPU)
 - 🗣️ **Self-hosted TTS** — Chatterbox (MIT license, ElevenLabs quality)
 - 🔌 **Pluggable backend** — Connect to any AI (OpenAI, Claude, Clawdbot, etc.)
