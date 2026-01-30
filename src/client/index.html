@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw Voice</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #ff6b35, #f7c94b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            color: #888;
+            margin-bottom: 40px;
+        }
+        
+        .voice-button {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #ff6b35 0%, #e55a2b 100%);
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 40px rgba(255, 107, 53, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+        }
+        
+        .voice-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 50px rgba(255, 107, 53, 0.4);
+        }
+        
+        .voice-button:active,
+        .voice-button.listening {
+            transform: scale(0.95);
+            background: linear-gradient(135deg, #e55a2b 0%, #c44a22 100%);
+        }
+        
+        .voice-button.listening {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 10px 40px rgba(255, 107, 53, 0.3); }
+            50% { box-shadow: 0 10px 60px rgba(255, 107, 53, 0.6); }
+        }
+        
+        .status {
+            font-size: 1.1rem;
+            color: #888;
+            margin-bottom: 20px;
+            min-height: 30px;
+        }
+        
+        .status.active {
+            color: #ff6b35;
+        }
+        
+        .transcript-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: left;
+            min-height: 100px;
+        }
+        
+        .transcript-box h3 {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .transcript-box p {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #ccc;
+        }
+        
+        .transcript-box p.user {
+            color: #ff6b35;
+        }
+        
+        .transcript-box p.assistant {
+            color: #4fc3f7;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .controls button {
+            padding: 10px 20px;
+            border: 1px solid #444;
+            background: transparent;
+            color: #888;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        
+        .controls button:hover {
+            border-color: #ff6b35;
+            color: #ff6b35;
+        }
+        
+        .error {
+            color: #ff4444;
+            margin-top: 20px;
+        }
+        
+        .instructions {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .instructions code {
+            background: rgba(255, 107, 53, 0.1);
+            color: #ff6b35;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ OpenClaw Voice</h1>
+        <p class="subtitle">Self-hosted voice AI interface</p>
+        
+        <button class="voice-button" id="voiceBtn">
+            Hold to Talk
+        </button>
+        
+        <p class="status" id="status">Ready</p>
+        
+        <div class="transcript-box">
+            <h3>Conversation</h3>
+            <div id="transcript"></div>
+        </div>
+        
+        <div class="controls">
+            <button id="clearBtn">Clear History</button>
+        </div>
+        
+        <p class="error" id="error"></p>
+        
+        <div class="instructions">
+            <p><strong>Instructions:</strong> Hold the button and speak. Release to send.</p>
+            <p style="margin-top: 10px;">Press <code>Space</code> to toggle recording.</p>
+        </div>
+    </div>
+
+    <script>
+        const voiceBtn = document.getElementById('voiceBtn');
+        const statusEl = document.getElementById('status');
+        const transcriptEl = document.getElementById('transcript');
+        const errorEl = document.getElementById('error');
+        const clearBtn = document.getElementById('clearBtn');
+        
+        let ws = null;
+        let mediaRecorder = null;
+        let audioContext = null;
+        let isRecording = false;
+        
+        // Connect to WebSocket
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                setStatus('Connected');
+                errorEl.textContent = '';
+            };
+            
+            ws.onclose = () => {
+                setStatus('Disconnected - reconnecting...');
+                setTimeout(connect, 2000);
+            };
+            
+            ws.onerror = (e) => {
+                errorEl.textContent = 'WebSocket error. Is the server running?';
+            };
+            
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                handleMessage(msg);
+            };
+        }
+        
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'listening_started':
+                    setStatus('Listening...', true);
+                    break;
+                case 'listening_stopped':
+                    setStatus('Processing...');
+                    break;
+                case 'transcript':
+                    addTranscript('You', msg.text, 'user');
+                    setStatus('Getting response...');
+                    break;
+                case 'response_text':
+                    addTranscript('AI', msg.text, 'assistant');
+                    break;
+                case 'audio_response':
+                    playAudio(msg.data, msg.sample_rate);
+                    setStatus('Ready');
+                    break;
+                case 'pong':
+                    break;
+            }
+        }
+        
+        function setStatus(text, active = false) {
+            statusEl.textContent = text;
+            statusEl.className = active ? 'status active' : 'status';
+        }
+        
+        function addTranscript(speaker, text, className) {
+            const p = document.createElement('p');
+            p.className = className;
+            p.innerHTML = `<strong>${speaker}:</strong> ${text}`;
+            transcriptEl.appendChild(p);
+            transcriptEl.scrollTop = transcriptEl.scrollHeight;
+        }
+        
+        // Audio recording
+        async function startRecording() {
+            if (isRecording) return;
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                    }
+                });
+                
+                audioContext = new AudioContext({ sampleRate: 16000 });
+                const source = audioContext.createMediaStreamSource(stream);
+                const processor = audioContext.createScriptProcessor(4096, 1, 1);
+                
+                processor.onaudioprocess = (e) => {
+                    if (isRecording && ws && ws.readyState === WebSocket.OPEN) {
+                        const audioData = e.inputBuffer.getChannelData(0);
+                        const base64 = float32ToBase64(audioData);
+                        ws.send(JSON.stringify({ type: 'audio', data: base64 }));
+                    }
+                };
+                
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+                
+                isRecording = true;
+                voiceBtn.classList.add('listening');
+                voiceBtn.textContent = 'Listening...';
+                
+                ws.send(JSON.stringify({ type: 'start_listening' }));
+                
+            } catch (err) {
+                errorEl.textContent = `Microphone error: ${err.message}`;
+            }
+        }
+        
+        function stopRecording() {
+            if (!isRecording) return;
+            
+            isRecording = false;
+            voiceBtn.classList.remove('listening');
+            voiceBtn.textContent = 'Hold to Talk';
+            
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'stop_listening' }));
+            }
+        }
+        
+        // Audio playback
+        function playAudio(base64Data, sampleRate) {
+            const audioCtx = new AudioContext({ sampleRate: sampleRate });
+            const audioData = base64ToFloat32(base64Data);
+            const buffer = audioCtx.createBuffer(1, audioData.length, sampleRate);
+            buffer.getChannelData(0).set(audioData);
+            
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioCtx.destination);
+            source.start();
+        }
+        
+        // Utilities
+        function float32ToBase64(float32Array) {
+            const bytes = new Uint8Array(float32Array.buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+        
+        function base64ToFloat32(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return new Float32Array(bytes.buffer);
+        }
+        
+        // Event listeners
+        voiceBtn.addEventListener('mousedown', startRecording);
+        voiceBtn.addEventListener('mouseup', stopRecording);
+        voiceBtn.addEventListener('mouseleave', stopRecording);
+        voiceBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); });
+        voiceBtn.addEventListener('touchend', stopRecording);
+        
+        // Spacebar to toggle
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !e.repeat) {
+                e.preventDefault();
+                if (isRecording) {
+                    stopRecording();
+                } else {
+                    startRecording();
+                }
+            }
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            transcriptEl.innerHTML = '';
+        });
+        
+        // Connect on load
+        connect();
+        
+        // Keep connection alive
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'ping' }));
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
