@@ -5,7 +5,7 @@ WebSocket server that handles:
 - Audio input from browser
 - Speech-to-Text via Whisper
 - AI backend communication
-- Text-to-Speech via Chatterbox
+- Text-to-Speech via ElevenLabs
 - Audio streaming back to browser
 """
 
@@ -50,14 +50,14 @@ class Settings(BaseSettings):
     tts_voice: Optional[str] = None  # Path to voice sample for cloning
     
     # AI Backend
-    backend_type: str = "openai"  # openai, clawdbot, custom
+    backend_type: str = "openai"  # openai, openclaw, custom
     backend_url: str = "https://api.openai.com/v1"
     backend_model: str = "gpt-4o-mini"
     openai_api_key: Optional[str] = None
     
-    # OpenClaw Gateway (auto-detected from CLAWDBOT_GATEWAY_URL + TOKEN)
-    clawdbot_gateway_url: Optional[str] = None
-    clawdbot_gateway_token: Optional[str] = None
+    # OpenClaw Gateway (auto-detected from OPENCLAW_GATEWAY_URL + TOKEN)
+    openclaw_gateway_url: Optional[str] = None
+    openclaw_gateway_token: Optional[str] = None
     
     # Audio
     sample_rate: int = 16000
@@ -106,8 +106,8 @@ async def startup():
     
     # Initialize AI backend
     # Auto-detect OpenClaw gateway
-    gateway_url = settings.clawdbot_gateway_url or os.getenv("CLAWDBOT_GATEWAY_URL")
-    gateway_token = settings.clawdbot_gateway_token or os.getenv("CLAWDBOT_GATEWAY_TOKEN")
+    gateway_url = settings.openclaw_gateway_url or os.getenv("OPENCLAW_GATEWAY_URL")
+    gateway_token = settings.openclaw_gateway_token or os.getenv("OPENCLAW_GATEWAY_TOKEN")
     
     if gateway_url and gateway_token:
         # Use OpenClaw gateway (connects to Aria!)

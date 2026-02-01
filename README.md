@@ -2,24 +2,20 @@
 
 **Open-source browser-based voice interface for AI assistants.**
 
-Talk to your AI like you talk to Alexa — but self-hosted, private, and free from subscription fees.
+Talk to your AI like you talk to Alexa — but self-hosted, private, and powered by your own agent.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.10+-green.svg)
 
-## Why?
-
-Voice AI platforms like ElevenLabs Agents ($0.08-0.12/min) and Retell.ai ($0.13-0.31/min) are expensive. OpenClaw Voice runs entirely on your own hardware for ~$0.003/min at scale.
-
 ## Features
 
 - 🎙️ **Browser voice widget** — Push-to-talk or hands-free continuous mode
-- 🚗 **Continuous mode** — Like Grok voice. Auto-listens after each response. Perfect for Tesla browser!
-- 🔊 **Self-hosted STT** — Whisper Large V3 Turbo (runs on Mac/Linux/GPU)
-- 🗣️ **Self-hosted TTS** — Chatterbox (MIT license, ElevenLabs quality)
+- 🚗 **Continuous mode** — Auto-listens after each response. Perfect for hands-free use!
+- 🔊 **Local STT** — Whisper runs locally via faster-whisper. Your voice stays on your machine.
+- 🗣️ **Premium TTS** — ElevenLabs for natural, expressive speech (Chatterbox available for self-hosted)
 - 🔌 **Pluggable backend** — Connect to any AI (OpenAI, Claude, OpenClaw gateway, etc.)
 - 🦞 **OpenClaw integration** — Full agent context, memory, and tools via gateway
-- 🌐 **WebRTC audio** — Low latency (<500ms end-to-end achievable)
+- 🌐 **WebSocket streaming** — Low latency audio over secure WebSockets
 - 🏠 **Fully self-hosted** — Your data stays on your servers
 
 ## Quick Start
@@ -27,8 +23,8 @@ Voice AI platforms like ElevenLabs Agents ($0.08-0.12/min) and Retell.ai ($0.13-
 ### Prerequisites
 
 - Python 3.10+
-- Node.js 18+ (for client dev)
-- CUDA GPU recommended (CPU works but slower)
+- ElevenLabs API key (recommended) or local TTS
+- OpenAI API key (or OpenClaw gateway)
 
 ### Installation
 
@@ -37,38 +33,38 @@ Voice AI platforms like ElevenLabs Agents ($0.08-0.12/min) and Retell.ai ($0.13-
 git clone https://github.com/Purple-Horizons/openclaw-voice.git
 cd openclaw-voice
 
-# Install Python dependencies
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+
+# Install dependencies
 pip install -r requirements.txt
 
-# Download models (first run only)
-python scripts/download_models.py
+# Configure environment
+cp .env.example .env
+# Edit .env with your API keys
 
 # Start the voice server
-python -m src.server.main
+PYTHONPATH=. python -m src.server.main
 
 # Open http://localhost:8765 in your browser
-```
-
-### Docker (Recommended)
-
-```bash
-docker compose up
 ```
 
 ## Architecture
 
 ```
-┌─────────────────┐     WebRTC      ┌─────────────────┐
-│    Browser      │ ◄─────────────► │  Voice Gateway  │
-│  (Voice Widget) │   Audio/Text    │    (Python)     │
-└─────────────────┘                 └────────┬────────┘
-                                             │
-                    ┌────────────────────────┼────────────────────────┐
-                    │                        │                        │
-              ┌─────▼─────┐          ┌───────▼───────┐        ┌──────▼──────┐
-              │  Whisper  │          │   Your AI     │        │ Chatterbox  │
-              │   (STT)   │          │   Backend     │        │    (TTS)    │
-              └───────────┘          └───────────────┘        └─────────────┘
+┌─────────────────┐    WebSocket     ┌─────────────────┐
+│    Browser      │ ◄──────────────► │  Voice Server   │
+│  (Voice Widget) │    Audio/Text    │    (Python)     │
+└─────────────────┘                  └────────┬────────┘
+                                              │
+                    ┌─────────────────────────┼─────────────────────────┐
+                    │                         │                         │
+              ┌─────▼─────┐           ┌───────▼───────┐         ┌──────▼──────┐
+              │  Whisper  │           │   Your AI     │         │ ElevenLabs  │
+              │   (STT)   │           │   Backend     │         │    (TTS)    │
+              │  (local)  │           │               │         │             │
+              └───────────┘           └───────────────┘         └─────────────┘
 ```
 
 ## OpenClaw Gateway Integration
@@ -77,8 +73,8 @@ For full agent capabilities (memory, tools, context), connect to OpenClaw's gate
 
 ```bash
 # .env
-CLAWDBOT_GATEWAY_URL=http://localhost:18789
-CLAWDBOT_GATEWAY_TOKEN=your-gateway-token
+OPENCLAW_GATEWAY_URL=http://localhost:18789
+OPENCLAW_GATEWAY_TOKEN=your-gateway-token
 ELEVENLABS_API_KEY=your-elevenlabs-key
 ```
 
@@ -107,9 +103,16 @@ Now voice chat routes through your full agent — same context as text chats.
 # Via environment variables (.env)
 OPENCLAW_STT_MODEL=base          # tiny, base, small, medium, large-v3-turbo
 OPENCLAW_STT_DEVICE=auto         # auto, cpu, cuda, mps
-OPENCLAW_TTS_MODEL=chatterbox    # chatterbox, xtts, mock
 OPENCLAW_PORT=8765
 OPENCLAW_REQUIRE_AUTH=false      # Set true for production
+
+# API Keys
+ELEVENLABS_API_KEY=your-key      # For TTS (recommended)
+OPENAI_API_KEY=your-key          # For AI backend (if not using gateway)
+
+# OpenClaw Gateway (optional - for full agent integration)
+OPENCLAW_GATEWAY_URL=http://localhost:18789
+OPENCLAW_GATEWAY_TOKEN=your-token
 ```
 
 ## Supported Models
@@ -118,32 +121,24 @@ OPENCLAW_REQUIRE_AUTH=false      # Set true for production
 | Model | Speed | Quality | VRAM |
 |-------|-------|---------|------|
 | Whisper Large V3 Turbo | 216x realtime | Best | ~6GB |
-| Distil-Whisper | 6x faster | Good | ~3GB |
-| Whisper.cpp (CPU) | Slower | Best | N/A |
+| Whisper Base | Fast | Good | ~1GB |
+| Whisper Tiny | Fastest | Fair | ~500MB |
 
 ### Text-to-Speech (TTS)
-| Model | Speed | Quality | Voice Cloning |
-|-------|-------|---------|---------------|
-| Chatterbox | ~1s | Excellent | 5-second samples |
-| Kokoro-82M | <0.3s | Very Good | No |
-| XTTS-v2 | ~1s | Excellent | 6-second samples |
+| Model | Type | Quality | Notes |
+|-------|------|---------|-------|
+| **ElevenLabs** | Cloud | Excellent | Recommended. Natural voices. |
+| Chatterbox | Local | Very Good | MIT license, voice cloning |
+| XTTS-v2 | Local | Excellent | Voice cloning supported |
 
 ## Browser Widget
 
-Embed the voice widget in any webpage:
+The server includes a built-in web interface at the root URL.
 
-```html
-<script src="https://unpkg.com/@openclaw/voice-widget"></script>
-<openclaw-voice server="wss://your-server:8765"></openclaw-voice>
-```
-
-Or use React:
-
-```jsx
-import { VoiceWidget } from '@openclaw/voice-widget-react';
-
-<VoiceWidget serverUrl="wss://your-server:8765" />
-```
+For HTTPS (required for mobile microphone access), use:
+- Tailscale Funnel
+- nginx with SSL
+- Cloudflare Tunnel
 
 ## API
 
@@ -155,7 +150,7 @@ Connect to `ws://localhost:8765/ws` and send/receive JSON messages:
 // Start listening
 { "type": "start_listening" }
 
-// Audio data (base64 PCM)
+// Audio data (base64 PCM float32)
 { "type": "audio", "data": "base64..." }
 
 // Stop listening
@@ -172,56 +167,14 @@ Connect to `ws://localhost:8765/ws` and send/receive JSON messages:
 
 - [x] Basic WebSocket voice gateway
 - [x] Whisper STT integration
-- [x] Chatterbox TTS integration
+- [x] ElevenLabs TTS integration
 - [x] Voice Activity Detection (VAD)
 - [x] Streaming responses
-- [x] Docker GPU support
-- [x] React component (`@openclaw/voice-widget-react`)
-- [x] API key authentication
 - [x] Continuous conversation mode
+- [x] API key authentication
 - [ ] WebRTC for lower latency
 - [ ] Voice cloning UI
-- [ ] Vue component
-- [ ] Kubernetes Helm chart
-- [ ] RunPod template
-
-## Hosted Service (Coming Soon)
-
-Don't want to self-host? We offer a managed service:
-
-| Tier | Minutes/Month | Price | Features |
-|------|---------------|-------|----------|
-| **Free** | 60 | $0 | Basic voice chat |
-| **Pro** | 500 | $29/mo | + Voice cloning |
-| **Enterprise** | Unlimited | $99/mo | + Priority, SLA |
-
-**API Key Authentication:**
-
-```bash
-# Get an API key
-curl -X POST "https://voice.openclaw.dev/api/keys?name=myapp&tier=pro" \
-     -H "x-master-key: YOUR_MASTER_KEY"
-
-# Connect with API key
-wss://voice.openclaw.dev/ws?api_key=ocv_xxxxx
-
-# Check usage
-curl "https://voice.openclaw.dev/api/usage?api_key=ocv_xxxxx"
-```
-
-## Cost Comparison
-
-| Platform | Cost/Minute |
-|----------|-------------|
-| ElevenLabs Conversational AI | $0.08-0.12 |
-| Retell.ai | $0.13-0.31 |
-| Vapi.ai | $0.05-0.15 |
-| **OpenClaw Voice (hosted)** | **~$0.06** |
-| **OpenClaw Voice (self-hosted)** | **~$0.003** |
-
-## Contributing
-
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
+- [ ] Docker support
 
 ## License
 
@@ -229,11 +182,11 @@ MIT License — see [LICENSE](LICENSE).
 
 ## Credits
 
-- [Whisper](https://github.com/openai/whisper) — OpenAI
-- [Chatterbox](https://github.com/resemble-ai/chatterbox) — Resemble AI
-- [Silero VAD](https://github.com/snakers4/silero-vad) — Silero
+- [faster-whisper](https://github.com/guillaumekln/faster-whisper) — CTranslate2 Whisper
+- [ElevenLabs](https://elevenlabs.io) — Text-to-Speech
+- [Silero VAD](https://github.com/snakers4/silero-vad) — Voice Activity Detection
 - Built for [OpenClaw](https://openclaw.ai)
 
 ---
 
-**Made with 🦀 by [Purple Horizons](https://purplehorizons.io)**
+**Made with 🦞 by [Purple Horizons](https://purplehorizons.io)**

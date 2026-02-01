@@ -1,5 +1,5 @@
 """
-AI Backend module - connects to OpenAI, Clawdbot, or custom backends.
+AI Backend module - connects to OpenAI, OpenClaw gateway, or custom backends.
 """
 
 import asyncio
@@ -43,9 +43,9 @@ class AIBackend:
                 logger.info(f"✅ OpenAI client ready (model: {self.model})")
             except ImportError:
                 logger.error("openai package not installed")
-        elif self.backend_type == "clawdbot":
-            # TODO: Implement Clawdbot gateway connection
-            logger.info("Clawdbot backend (not yet implemented)")
+        elif self.backend_type == "openclaw":
+            # OpenClaw gateway uses OpenAI-compatible API
+            logger.info("OpenClaw gateway backend")
         else:
             logger.warning(f"Unknown backend type: {self.backend_type}")
     

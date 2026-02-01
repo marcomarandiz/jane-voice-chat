@@ -9,7 +9,7 @@ Adds voice chat capability to your OpenClaw agent. Users can speak to your agent
 ## Stack
 
 - **STT**: faster-whisper (local, no API costs)
-- **TTS**: ElevenLabs (or Chatterbox for self-hosted)
+- **TTS**: ElevenLabs (cloud, high quality) or Chatterbox (self-hosted)
 - **Transport**: WebSocket
 - **Backend**: OpenClaw gateway (chatCompletions endpoint)
 
@@ -59,7 +59,7 @@ uv sync  # or pip install -r requirements.txt
 
 # Configure
 cp .env.example .env
-# Edit .env with your CLAWDBOT_GATEWAY_URL, CLAWDBOT_GATEWAY_TOKEN, ELEVENLABS_API_KEY
+# Edit .env with your OPENCLAW_GATEWAY_URL, OPENCLAW_GATEWAY_TOKEN, ELEVENLABS_API_KEY
 
 # Run
 PYTHONPATH=. python -m src.server.main
@@ -75,8 +75,8 @@ For HTTPS (required for mobile mic), use Tailscale Funnel or your own SSL.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `CLAWDBOT_GATEWAY_URL` | Yes* | OpenClaw gateway URL (e.g., `http://localhost:18789`) |
-| `CLAWDBOT_GATEWAY_TOKEN` | Yes* | Gateway auth token |
+| `OPENCLAW_GATEWAY_URL` | Yes* | OpenClaw gateway URL (e.g., `http://localhost:18789`) |
+| `OPENCLAW_GATEWAY_TOKEN` | Yes* | Gateway auth token |
 | `ELEVENLABS_API_KEY` | Recommended | For high-quality TTS |
 | `OPENAI_API_KEY` | Fallback | Used if gateway not configured |
 
