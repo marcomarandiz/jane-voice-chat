@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "public": false,
+  "builds": [
+    {
+      "src": "src/client/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/src/client/$1"
+    }
+  ]
+}

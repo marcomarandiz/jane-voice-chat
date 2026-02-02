@@ -911,8 +911,13 @@
             }
         });
         
-        // Connect on load
-        connect();
+        // Connect on load (wrapped in try-catch to not break page if it fails)
+        try {
+            connect();
+        } catch (e) {
+            console.error('Initial connection failed:', e);
+            errorEl.textContent = 'Connection failed. Please check settings.';
+        }
         
         // Keep connection alive
         setInterval(() => {
