@@ -253,10 +253,29 @@
             border-radius: 4px;
         }
         
-        .settings-button {
+        .top-controls {
             position: fixed;
             top: 20px;
             right: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+            transition: background 0.3s;
+        }
+        
+        .status-dot.connected {
+            background: #4fc3f7;
+        }
+        
+        .settings-button {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid #444;
             color: #888;
@@ -365,32 +384,19 @@
             border-color: #ff6b35;
             color: #ff6b35;
         }
-        
-        .connection-status {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #ff4444;
-            margin-left: 10px;
-        }
-        
-        .connection-status.connected {
-            background: #4fc3f7;
-        }
     </style>
 </head>
 <body>
-    <button class="settings-button" id="settingsBtn">⚙️</button>
+    <div class="top-controls">
+        <div class="status-dot" id="statusDot" title="Connection status"></div>
+        <button class="settings-button" id="settingsBtn">⚙️</button>
+    </div>
     
     <div class="settings-modal" id="settingsModal">
         <div class="settings-content">
             <h2>Settings</h2>
             <div class="settings-field">
-                <label>
-                    Gateway URL
-                    <span class="connection-status" id="connectionStatus"></span>
-                </label>
+                <label>Gateway URL</label>
                 <input type="text" id="gatewayUrl" placeholder="http://100.108.32.4:8765">
             </div>
             <div class="settings-field">
@@ -459,7 +465,7 @@
         const apiKeyInput = document.getElementById('apiKey');
         const saveBtn = document.getElementById('saveBtn');
         const cancelBtn = document.getElementById('cancelBtn');
-        const connectionStatus = document.getElementById('connectionStatus');
+        const statusDot = document.getElementById('statusDot');
         
         let ws = null;
         let mediaRecorder = null;
@@ -509,7 +515,7 @@
             ws.onopen = () => {
                 setStatus('Connected');
                 errorEl.textContent = '';
-                connectionStatus.classList.add('connected');
+                statusDot.classList.add('connected');
             };
             
             ws.onclose = (event) => {
@@ -945,7 +951,7 @@
             if (ws) {
                 ws.close();
             }
-            connectionStatus.classList.remove('connected');
+            statusDot.classList.remove('connected');
             setStatus('Reconnecting...');
             setTimeout(connect, 500);
         });
