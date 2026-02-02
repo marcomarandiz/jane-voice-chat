@@ -706,6 +706,12 @@
         async function startRecording() {
             if (isRecording) return;
             
+            // Check if WebSocket is connected
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                errorEl.textContent = 'Not connected to server. Check your settings (⚙️) and make sure the gateway URL and API key are correct.';
+                return;
+            }
+            
             try {
                 // Reuse stream if available, otherwise get new one
                 if (!mediaStream) {
@@ -787,6 +793,8 @@
             
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'stop_listening' }));
+            } else {
+                errorEl.textContent = 'Connection lost. Please refresh and check settings.';
             }
         }
         
