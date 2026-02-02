@@ -922,11 +922,14 @@
         }, 30000);
         
         // Settings modal handlers
+        console.log('Attaching settings button listener', settingsBtn);
         settingsBtn.addEventListener('click', () => {
+            console.log('Settings button clicked!');
             // Load current settings
             gatewayUrlInput.value = getGatewayUrl();
             apiKeyInput.value = getApiKey();
             settingsModal.classList.add('active');
+            console.log('Modal should be visible now');
         });
         
         cancelBtn.addEventListener('click', () => {
