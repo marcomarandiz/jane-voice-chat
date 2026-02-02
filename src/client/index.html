@@ -549,6 +549,8 @@
         let isPlayingQueue = false;
         let currentResponseElement = null;
         let streamingText = '';
+        let playbackAudioContext = null;
+        let nextStartTime = 0;
         
         function handleMessage(msg) {
             switch (msg.type) {
@@ -565,6 +567,10 @@
                     streamingText = '';
                     currentResponseElement = null;
                     audioQueue = [];
+                    // Reset audio scheduling
+                    if (playbackAudioContext) {
+                        nextStartTime = playbackAudioContext.currentTime;
+                    }
                     break;
                 case 'response_text':
                     // Legacy non-streaming response
@@ -624,6 +630,15 @@
             const { data, sampleRate } = audioQueue.shift();
             
             try {
+                // Create or reuse AudioContext
+                if (!playbackAudioContext || playbackAudioContext.state === 'closed') {
+                    playbackAudioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        sampleRate: sampleRate,
+                        latencyHint: 'playback'  // Optimize for smooth playback
+                    });
+                    nextStartTime = playbackAudioContext.currentTime;
+                }
+                
                 // Decode base64 to PCM
                 const binaryString = atob(data);
                 const bytes = new Uint8Array(binaryString.length);
@@ -638,19 +653,23 @@
                     float32[i] = int16[i] / 32768.0;
                 }
                 
-                // Create audio buffer and play
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate });
-                const buffer = audioCtx.createBuffer(1, float32.length, sampleRate);
+                // Create audio buffer and schedule playback
+                const buffer = playbackAudioContext.createBuffer(1, float32.length, sampleRate);
                 buffer.copyToChannel(float32, 0);
                 
-                const source = audioCtx.createBufferSource();
+                const source = playbackAudioContext.createBufferSource();
                 source.buffer = buffer;
-                source.connect(audioCtx.destination);
-                source.onended = () => {
-                    audioCtx.close();
-                    playNextInQueue();
-                };
-                source.start(0);
+                source.connect(playbackAudioContext.destination);
+                
+                // Schedule this chunk to start right after the previous one
+                const startTime = Math.max(nextStartTime, playbackAudioContext.currentTime);
+                source.start(startTime);
+                
+                // Update next start time
+                nextStartTime = startTime + buffer.duration;
+                
+                // Continue with next chunk
+                playNextInQueue();
             } catch (e) {
                 console.error('Audio playback error:', e);
                 playNextInQueue();
